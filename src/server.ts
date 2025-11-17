@@ -13,16 +13,22 @@ const app = express();
 const angularApp = new AngularNodeAppEngine();
 
 /**
- * Example Express Rest API endpoints can be defined here.
- * Uncomment and define endpoints as necessary.
- *
- * Example:
- * ```ts
- * app.get('/api/{*splat}', (req, res) => {
- *   // Handle API request
- * });
- * ```
+ * API endpoints
  */
+
+// Configuration endpoint that serves environment variables
+app.get('/api/config', (req, res) => {
+  const config = {
+    production: process.env['NODE_ENV'] === 'production',
+    opencageApiKey: process.env['OPENCAGE_API_KEY'] || '', // dev settings
+    apiBaseUrl: process.env['API_BASE_URL'] || '',
+    mapTileUrl: process.env['MAP_TILE_URL'] || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    appVersion: process.env['APP_VERSION'] || '1.0.0',
+    appName: process.env['APP_NAME'] || 'Fervo Weather',
+  };
+
+  res.json(config);
+});
 
 /**
  * Serve static files from /browser
@@ -32,7 +38,7 @@ app.use(
     maxAge: '1y',
     index: false,
     redirect: false,
-  }),
+  })
 );
 
 /**
@@ -41,9 +47,7 @@ app.use(
 app.use((req, res, next) => {
   angularApp
     .handle(req)
-    .then((response) =>
-      response ? writeResponseToNodeResponse(response, res) : next(),
-    )
+    .then((response) => (response ? writeResponseToNodeResponse(response, res) : next()))
     .catch(next);
 });
 
@@ -58,7 +62,7 @@ if (isMainModule(import.meta.url) || process.env['pm_id']) {
       throw error;
     }
 
-    console.log(`Node Express server listening on http://localhost:${port}`);
+    // console.log(`Node Express server listening on http://localhost:${port}`);
   });
 }
 

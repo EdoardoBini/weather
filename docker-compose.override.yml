@@ -1,0 +1,16 @@
+# Override file for development
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.override.yml up
+
+services:
+  app:
+    # Override for development
+    build:
+      target: development
+    ports:
+      - "4200:4200"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+    command: ["npm", "run", "start"]

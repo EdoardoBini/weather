@@ -1,0 +1,336 @@
+<!-- Error overlay for weather info -->
+<div *ngIf="error()" class="weather-error-overlay">
+  <div class="weather-error-content improved">
+    <div class="error-icon">
+      <svg
+        width="36"
+        height="36"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <circle cx="12" cy="12" r="12" fill="#fff3e0" />
+        <path d="M12 7v5" stroke="#e53935" stroke-width="2" stroke-linecap="round" />
+        <circle cx="12" cy="16" r="1.2" fill="#e53935" />
+        <circle cx="12" cy="12" r="10" stroke="#e53935" stroke-width="2" fill="none" />
+      </svg>
+    </div>
+    <p class="weather-error-message improved">{{ error() }}</p>
+    <button class="retry-btn improved" (click)="retryWeatherLoad()">Retry</button>
+  </div>
+</div>
+
+<div class="weather-content" *ngIf="!error()">
+  <div class="loading-overlay" *ngIf="loading()">
+    <div class="loading">
+      <div class="loading-spinner" aria-label="Loading"></div>
+      <p>Loading weather data...</p>
+    </div>
+  </div>
+  <ng-container *ngIf="!loading()">
+    <div class="weather-header">
+      <div class="header-info">
+        <p class="location">
+          {{ weatherData()?.location?.lat?.toFixed(2) }},
+          {{ weatherData()?.location?.lon?.toFixed(2) }}
+        </p>
+        <p class="address" *ngIf="address">{{ address }}</p>
+        <p class="timezone">{{ weatherData()?.location?.timezone }}</p>
+      </div>
+      <div class="header-actions">
+        <div class="download-buttons">
+          <!-- <button
+            class="download-btn primary"
+            (click)="downloadWeatherData()"
+            title="Download current weather data as JSON"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M7 10L12 15L17 10"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M12 15V3"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            Current Data
+          </button> -->
+          <button
+            class="download-btn secondary"
+            (click)="downloadYearlyData()"
+            title="Download last year's historical data as JSON"
+            [disabled]="loadingYearly()"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M7 10L12 15L17 10"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+              <path
+                d="M12 15V3"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <div class="spinner" *ngIf="loadingYearly()"></div>
+            {{ loadingYearly() ? 'Loading...' : 'Previous Year Data' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="current-weather">
+      <div class="temperature">
+        <span class="temp">{{ weatherData()?.current?.temp_c?.toFixed(1) }}°C</span>
+        <span class="time">{{ formatTime(weatherData()?.current?.time) }}</span>
+      </div>
+      <div class="weather-icon">
+        <div class="icon-placeholder">
+          {{ getTemperatureEmoji(weatherData()?.current?.temp_c) }}
+        </div>
+      </div>
+    </div>
+
+    <div class="weather-details">
+      <div class="detail-item" *ngIf="weatherData()?.current?.humidity">
+        <span class="label">Humidity:</span>
+        <span class="value">{{ weatherData()?.current?.humidity }}%</span>
+      </div>
+      <div class="detail-item" *ngIf="weatherData()?.current?.wind_kph">
+        <span class="label">Wind:</span>
+        <span class="value">{{ weatherData()?.current?.wind_kph?.toFixed(1) }} km/h</span>
+      </div>
+      <div class="detail-item" *ngIf="weatherData()?.current?.wind_dir">
+        <span class="label">Direction:</span>
+        <span class="value">{{ weatherData()?.current?.wind_dir }}°</span>
+      </div>
+      <div class="detail-item" *ngIf="weatherData()?.current?.pressure_mb">
+        <span class="label">Pressure:</span>
+        <span class="value">{{ weatherData()?.current?.pressure_mb?.toFixed(0) }} hPa</span>
+      </div>
+    </div>
+
+    <div class="hourly-forecast" *ngIf="weatherData()?.hourly">
+      <div class="forecast-header">
+        <h4>
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+            <polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="2" />
+          </svg>
+          Next 12 Hours Forecast
+        </h4>
+        <div class="forecast-summary">
+          <span class="temp-range">{{ getTemperatureRange() }}</span>
+          <span class="conditions">{{ getWeatherCondition() }}</span>
+          <span class="data-freshness">{{ getCurrentHourInfo() }}</span>
+        </div>
+      </div>
+
+      <div class="hourly-scroll-container">
+        <div class="hourly-items">
+          <div
+            class="hourly-item"
+            *ngFor="let hourData of getNext12HoursData(); let i = index"
+            [class.current-hour]="isCurrentHour(i)"
+          >
+            <div class="hour-time">
+              <span class="time">{{ hourData.time }}</span>
+              <span class="period" *ngIf="isCurrentHour(i)">Now</span>
+              <span class="period next" *ngIf="i === 1 && !isCurrentHour(0)">Next</span>
+            </div>
+
+            <div class="weather-icon-small">
+              <span class="weather-emoji">{{ getTemperatureEmoji(hourData.temperature) }}</span>
+            </div>
+
+            <div class="hour-temp">
+              <span class="temp-main">{{ hourData.temperature.toFixed(1) }}°</span>
+              <span class="feels-like"
+                >{{ getFeelsLike(hourData.temperature, hourData.humidity) }}°</span
+              >
+            </div>
+
+            <div class="hour-details">
+              <div class="detail-row">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5Z"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  />
+                </svg>
+                <span>{{ hourData.humidity }}%</span>
+              </div>
+              <div class="detail-row" *ngIf="hourData.windSpeed > 0">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  />
+                  <path d="M9.6 4.6A2 2 0 1 1 11 8H2" stroke="currentColor" stroke-width="2" />
+                  <path d="M12.6 19.4A2 2 0 1 0 14 16H2" stroke="currentColor" stroke-width="2" />
+                </svg>
+                <span>{{ (hourData.windSpeed * 3.6).toFixed(0) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="forecast-legend">
+        <div class="legend-item">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="12" cy="12" r="5" stroke="currentColor" stroke-width="2" />
+            <line x1="12" y1="1" x2="12" y2="3" stroke="currentColor" stroke-width="2" />
+            <line x1="12" y1="21" x2="12" y2="23" stroke="currentColor" stroke-width="2" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" stroke="currentColor" stroke-width="2" />
+            <line
+              x1="18.36"
+              y1="18.36"
+              x2="19.78"
+              y2="19.78"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <line x1="1" y1="12" x2="3" y2="12" stroke="currentColor" stroke-width="2" />
+            <line x1="21" y1="12" x2="23" y2="12" stroke="currentColor" stroke-width="2" />
+            <line
+              x1="4.22"
+              y1="19.78"
+              x2="5.64"
+              y2="18.36"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+            <line
+              x1="18.36"
+              y1="5.64"
+              x2="19.78"
+              y2="4.22"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+          </svg>
+          <span>Temperature & Feels Like</span>
+        </div>
+        <div class="legend-item">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.29 1.51 4.04 3 5.5Z"
+              stroke="currentColor"
+              stroke-width="2"
+            />
+          </svg>
+          <span>Humidity</span>
+        </div>
+        <div class="legend-item">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2" stroke="currentColor" stroke-width="2" />
+          </svg>
+          <span>Wind Speed (km/h)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Weather Chart Section -->
+    <div class="chart-section" *ngIf="chartWeatherData">
+      <h4>Weather Trends</h4>
+      <app-weather-chart
+        [weatherData]="chartWeatherData"
+        [yearlyWeatherData]="yearlyWeatherData()"
+        [isLoadingYearly]="loadingYearly()"
+        (loadYearlyData)="onLoadYearlyData()"
+      >
+      </app-weather-chart>
+    </div>
+  </ng-container>
+</div>
+
+<!-- Success Toast -->
+<div class="success-toast" *ngIf="showSuccessToast()">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path
+      d="M20 6L9 17L4 12"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </svg>
+  Weather data downloaded successfully!
+</div>

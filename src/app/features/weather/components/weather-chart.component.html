@@ -1,0 +1,247 @@
+<div class="chart-controls">
+  <div class="metrics-selection">
+    <label class="section-label">Metrics to Display (max 2):</label>
+    <div class="metric-checkboxes">
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          [(ngModel)]="selectedMetrics.temperature"
+          (change)="onMetricChange('temperature')"
+          [disabled]="!selectedMetrics.temperature && selectedCount >= metricLimit"
+        />
+        <span class="checkmark temperature"></span>
+        Temperature (°C)
+      </label>
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          [(ngModel)]="selectedMetrics.humidity"
+          (change)="onMetricChange('humidity')"
+          [disabled]="!selectedMetrics.humidity && selectedCount >= metricLimit"
+        />
+        <span class="checkmark humidity"></span>
+        Humidity (%)
+      </label>
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          [(ngModel)]="selectedMetrics.windSpeed"
+          (change)="onMetricChange('windSpeed')"
+          [disabled]="!selectedMetrics.windSpeed && selectedCount >= metricLimit"
+        />
+        <span class="checkmark windSpeed"></span>
+        Wind Speed (km/h)
+      </label>
+      <label class="checkbox-label">
+        <input
+          type="checkbox"
+          [(ngModel)]="selectedMetrics.pressure"
+          (change)="onMetricChange('pressure')"
+          [disabled]="!selectedMetrics.pressure && selectedCount >= metricLimit"
+        />
+        <span class="checkmark pressure"></span>
+        Pressure (hPa)
+      </label>
+    </div>
+    <div *ngIf="metricWarning" class="metric-warning">{{ metricWarning }}</div>
+  </div>
+
+  <div class="time-controls" style="display: grid; grid-template-rows: auto auto; gap: 0.5rem">
+    <div
+      class="time-row-1"
+      style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: center"
+    >
+      <div style="width: 100%; display: flex; flex-direction: column">
+        <label for="dataMode">Data Mode:</label>
+        <select
+          id="dataMode"
+          [(ngModel)]="dataMode"
+          (change)="onDataModeChange()"
+          style="width: 100%"
+        >
+          <option value="current">Current Forecast</option>
+          <option value="yearly">Last Year Historical</option>
+        </select>
+      </div>
+      <div style="width: 100%; display: flex; flex-direction: column">
+        <label for="granularity">Granularity:</label>
+        <select
+          id="granularity"
+          [(ngModel)]="granularity"
+          (change)="updateChart()"
+          style="width: 100%"
+        >
+          <option value="hourly">Hourly</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+        </select>
+      </div>
+    </div>
+    <div
+      class="time-row-2"
+      *ngIf="dataMode === 'current'"
+      style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: center"
+    >
+      <div style="width: 100%; display: flex; flex-direction: column">
+        <label for="customStart">Start Date:</label>
+        <input
+          id="customStart"
+          type="date"
+          [(ngModel)]="customStart"
+          (change)="onStartDateChange()"
+          [min]="today"
+          [max]="maxCustomEnd"
+          style="width: 100%"
+        />
+      </div>
+      <div style="width: 100%; display: flex; flex-direction: column">
+        <label for="customEnd">End Date:</label>
+        <input
+          id="customEnd"
+          type="date"
+          [(ngModel)]="customEnd"
+          (change)="onEndDateChange()"
+          [min]="customStart || today"
+          [max]="maxCustomEnd"
+          style="width: 100%"
+        />
+      </div>
+    </div>
+    <div
+      class="time-row-2"
+      *ngIf="dataMode === 'yearly'"
+      style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: center"
+    >
+      <div style="width: 100%; display: flex; flex-direction: column">
+        <label for="customYearlyStart">Start Date:</label>
+        <input
+          id="customYearlyStart"
+          type="date"
+          [(ngModel)]="customYearlyStart"
+          (change)="onYearlyStartDateChange()"
+          [min]="minYearlyDate"
+          [max]="maxYearlyDate"
+          style="width: 100%"
+        />
+      </div>
+      <div style="width: 100%; display: flex; flex-direction: column">
+        <label for="customYearlyEnd">End Date:</label>
+        <input
+          id="customYearlyEnd"
+          type="date"
+          [(ngModel)]="customYearlyEnd"
+          (change)="onYearlyEndDateChange()"
+          [min]="customYearlyStart || minYearlyDate"
+          [max]="maxYearlyDate"
+          style="width: 100%"
+        />
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="chart-container" style="position: relative">
+  <!-- Loading overlay for yearly data -->
+  <div *ngIf="dataMode === 'yearly' && isLoadingYearly" class="chart-loading-overlay">
+    <p>Loading last year's weather data...</p>
+  </div>
+
+  <!-- Error overlay for chart data -->
+  <div *ngIf="chartError" class="chart-error-overlay">
+    <div class="chart-error-content error-enhanced">
+      <div class="error-icon">
+        <svg
+          width="36"
+          height="36"
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <circle cx="12" cy="12" r="12" fill="#fff3e0" />
+          <path d="M12 7v5" stroke="#e53935" stroke-width="2" stroke-linecap="round" />
+          <circle cx="12" cy="16" r="1.2" fill="#e53935" />
+          <circle cx="12" cy="12" r="10" stroke="#e53935" stroke-width="2" fill="none" />
+        </svg>
+      </div>
+      <p class="chart-error-message error-enhanced">{{ chartError }}</p>
+      <button class="retry-btn error-enhanced" (click)="retryLoadData()">Retry</button>
+    </div>
+  </div>
+
+  <div *ngIf="!chartError" echarts [options]="chartOptions" class="weather-echart"></div>
+  <div *ngIf="!chartError" class="chart-fab-buttons">
+    <button
+      class="fab-btn"
+      (click)="zoomIn()"
+      [disabled]="granularity === 'hourly'"
+      title="Zoom In"
+    >
+      <span>+</span>
+    </button>
+    <button
+      class="fab-btn"
+      (click)="zoomOut()"
+      [disabled]="granularity === 'monthly'"
+      title="Zoom Out"
+    >
+      <span>-</span>
+    </button>
+    <button
+      class="fab-btn"
+      (click)="resetZoom()"
+      [disabled]="granularity === defaultGranularity && !customStart && !customEnd"
+      title="Reset Zoom"
+    >
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <polyline points="1 4 1 10 7 10"></polyline>
+        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+      </svg>
+    </button>
+    <button
+      class="fab-btn"
+      (click)="downloadChartData()"
+      title="Download chart data as JSON"
+      style="background: #1976d2; color: #fff"
+    >
+      <svg
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M21 15V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H5C4.46957 21 3.96086 20.7893 3.58579 20.4142C3.21071 20.0391 3 19.5304 3 19V15"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M7 10L12 15L17 10"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+        <path
+          d="M12 15V3"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </button>
+  </div>
+</div>

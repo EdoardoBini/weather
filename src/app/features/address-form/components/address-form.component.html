@@ -120,13 +120,12 @@
           </div>
         </div>
         <div class="form-group" *ngIf="italianCountryCode === 'it'">
-          <label for="postalCode">Postcode:</label>
+          <label for="postalCode">Postcode (optional):</label>
           <input
             id="postalCode"
             name="postalCode"
             type="text"
             [(ngModel)]="postalCode"
-            required
             placeholder="es. 20121, 00100, 80121..."
             maxlength="5"
             pattern="[0-9]*"
@@ -134,7 +133,9 @@
             (input)="onFieldChange('postalCode')"
             (keypress)="onPostalCodeKeypress($event)"
           />
-          <div *ngIf="isInvalid('postalCode')" class="input-error">Postcode must be 5 digits</div>
+          <div *ngIf="postalCode && isInvalid('postalCode')" class="input-error">
+            Postcode must be 5 digits
+          </div>
         </div>
         <div class="form-group" *ngIf="italianCountryCode && italianCountryCode !== 'it'">
           <label for="postalCode">Postcode (optional):</label>
@@ -161,14 +162,12 @@
             isInvalid('roadName') ||
             isInvalid('city') ||
             (italianCountryCode === 'it' && isInvalid('county')) ||
-            (italianCountryCode === 'it' && isInvalid('postalCode')) ||
             (italianCountryCode && italianCountryCode !== 'it' && isInvalid('postalCode')) ||
             !italianCountryCode ||
             (italianCountryCode === 'it' && !roadType) ||
             !roadName ||
             !city ||
-            (italianCountryCode === 'it' && !county) ||
-            (italianCountryCode === 'it' && !postalCode)
+            (italianCountryCode === 'it' && !county)
           "
         >
           <ng-container *ngIf="isLoading; else searchIcon">

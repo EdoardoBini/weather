@@ -69,7 +69,8 @@ export class AddressFormComponent implements OnInit, OnDestroy {
     if (field === 'postalCode') {
       if (!this.touched[field]) return false;
       if (this.italianCountryCode === 'it') {
-        return !this.isValidItalianPostalCode(this.postalCode);
+        // Postcode is optional for Italy, only validate if present
+        return !!this.postalCode && !this.isValidItalianPostalCode(this.postalCode);
       } else if (this.italianCountryCode) {
         // For other countries, only validate if non-empty and touched
         return !!this.postalCode && !/^[A-Za-z0-9 \-]+$/.test(this.postalCode);
@@ -201,7 +202,6 @@ export class AddressFormComponent implements OnInit, OnDestroy {
       this.isInvalid('roadName') ||
       this.isInvalid('city') ||
       (this.italianCountryCode === 'it' && this.isInvalid('county')) ||
-      (this.italianCountryCode === 'it' && this.isInvalid('postalCode')) ||
       (this.italianCountryCode && this.italianCountryCode !== 'it' && !!this.postalCode && this.isInvalid('postalCode'))
     ) {
       let errorMsg = '';
@@ -229,10 +229,14 @@ export class AddressFormComponent implements OnInit, OnDestroy {
       const roadTypePrefix = this.roadType ? `${this.roadType} ` : '';
       // Remove county if equal to city (case-insensitive)
       const countyToUse = (this.county && this.city && this.county.trim().toLowerCase() === this.city.trim().toLowerCase()) ? '' : this.county;
-      if (countyToUse) {
+      if (countyToUse && this.postalCode) {
         address = `${roadTypePrefix}${this.roadName}, ${this.city}, ${countyToUse}, ${this.postalCode}`;
-      } else {
+      } else if (countyToUse) {
+        address = `${roadTypePrefix}${this.roadName}, ${this.city}, ${countyToUse}`;
+      } else if (this.postalCode) {
         address = `${roadTypePrefix}${this.roadName}, ${this.city}, ${this.postalCode}`;
+      } else {
+        address = `${roadTypePrefix}${this.roadName}, ${this.city}`;
       }
     } else {
       // For other countries, include county if present

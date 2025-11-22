@@ -121,15 +121,20 @@ export class GeocodingService {
    * Throws a validation error if no suitable result is found.
    */
   private findBestResult(results: any[], originalAddress: string): any | null {
-    // Prefer result with postcode matching the input, otherwise throw error
+    // Prefer result with postcode matching the input, otherwise allow valid road/square if postcode is not provided
     const addressParts = this.parseAddress(originalAddress);
-    if (results && results.length > 0 && addressParts.postcode) {
+    if (results && results.length > 0) {
       // Discard results without road or square attribute
       const filteredResults = results.filter(r => r.components && (r.components.road || r.components.square));
-      const exactPostcode = filteredResults.find(r => r.components && r.components.postcode && r.components.postcode === addressParts.postcode);
-      if (exactPostcode) return exactPostcode;
-      // If no result with matching postcode, throw error
-      throw new Error(`VALIDATION_ERROR: No result found with postcode ${addressParts.postcode} and a valid road or square. Please verify the entered address.`);
+      if (addressParts.postcode) {
+        const exactPostcode = filteredResults.find(r => r.components && r.components.postcode && r.components.postcode === addressParts.postcode);
+        if (exactPostcode) return exactPostcode;
+        // If no result with matching postcode, throw error
+        throw new Error(`VALIDATION_ERROR: No result found with postcode ${addressParts.postcode} and a valid road or square. Please verify the entered address.`);
+      } else {
+        // No postcode provided: return first with valid road or square
+        if (filteredResults.length > 0) return filteredResults[0];
+      }
     }
 
     console.log('originalAddress', originalAddress);

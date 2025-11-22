@@ -282,6 +282,7 @@ export interface LocationResult {
   longitude: number;
   address: string;
   confidence?: number;
+  postcode?: string;
 }
 
 export interface WeatherDisplayData {

@@ -22,6 +22,7 @@ export class GeocodingService {
   geocode(address: string, countryCode?: string): Observable<LocationResult | null> {
     const apiKey = this.configService.get<string>('opencageApiKey') || '';
     let url: string;
+    console.log('Geocoding address:', address, 'with country code:', countryCode);
     if (countryCode) {
       url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
         address
@@ -35,6 +36,7 @@ export class GeocodingService {
         address
       )}&key=${apiKey}&limit=5`;
     }
+    console.log(url)
     return this.http.get<OpenCageResponse>(url).pipe(
       map((data) => {
         if (data.results && data.results.length > 0) {
@@ -138,7 +140,7 @@ export class GeocodingService {
           result.components.city || result.components.town || result.components.village || '';
         const geocodedPostcode = result.components.postcode || '';
         const geocodedCounty = result.components.county || '';
-        const inputPostcode = addressParts.province || '';
+        const inputPostcode = addressParts.postcode || '';
         const inputCounty = addressParts.county || '';
 
         // Only validate city if both are present
@@ -237,14 +239,74 @@ export class GeocodingService {
   private parseAddress(address: string): any {
     // Simple parsing - you might want to make this more sophisticated
     const parts = address.split(',').map((p) => p.trim());
-    // Try to extract county and postcode if present (e.g., "street, city, province, county, postcode")
-    return {
-      street: parts[0] || '',
-      city: parts[1] || '',
-      province: parts[2] || '',
-      county: parts[3] || '',
-      postcode: parts[4] || '',
-    };
+
+    // Extract postcode from any part (Italian postcodes are 5 digits)
+    let postcode = '';
+    const postcodeRegex = /\b\d{5}\b/;
+    for (const part of parts) {
+      const match = part.match(postcodeRegex);
+      if (match) {
+        postcode = match[0];
+        break;
+      }
+    }
+
+    let result: any = {};
+    // If Italian address (length 3 or 4, as handled by the form)
+    if (parts.length === 4) {
+      // street, city, county/province, postcode
+      result = {
+        street: parts[0] || '',
+        city: parts[1] || '',
+        province: parts[2] || '',
+        county: parts[2] || '',
+        postcode: postcode || parts[3] || '',
+      };
+    } else if (parts.length === 3) {
+      // street, city, postcode
+      result = {
+        street: parts[0] || '',
+        city: parts[1] || '',
+        province: '',
+        county: '',
+        postcode: postcode || parts[2] || '',
+      };
+    } else if (parts.length === 5) {
+      // Non-Italian: country, address, city, county, postalcode
+      result = {
+        country: parts[0] || '',
+        street: parts[1] || '',
+        city: parts[2] || '',
+        county: parts[3] || '',
+        postcode: postcode || parts[4] || '',
+      };
+    } else if (parts.length === 4) {
+      // Non-Italian: address, city, county, postalcode
+      result = {
+        street: parts[0] || '',
+        city: parts[1] || '',
+        county: parts[2] || '',
+        postcode: postcode || parts[3] || '',
+      };
+    } else if (parts.length === 3) {
+      // Non-Italian: address, city, postalcode
+      result = {
+        street: parts[0] || '',
+        city: parts[1] || '',
+        postcode: postcode || parts[2] || '',
+      };
+    } else {
+      // fallback for other cases
+      result = {
+        street: parts[0] || '',
+        city: parts[1] || '',
+        province: parts[2] || '',
+        county: parts[2] || '',
+        postcode: postcode || parts[3] || '',
+      };
+    }
+    console.log('Parsed address parts:', result);
+    return result;
   }
 
   /**
@@ -289,17 +351,23 @@ export class GeocodingService {
 
     // Postcode validation (if both present)
     if (addressParts.postcode && geocodedPostcode) {
-      if (!this.fuzzyMatch(geocodedPostcode, addressParts.postcode)) {
+      console.log('🔍 Postcode validation - Input:', addressParts.postcode, 'Geocoded:', geocodedPostcode);
+      if (geocodedPostcode !== addressParts.postcode) {
+        console.log('❌ Postcode mismatch detected!');
         // Instead of returning false, throw a specific error for postcode mismatch
         throw new Error(`VALIDATION_ERROR: Postcode mismatch: found "${geocodedPostcode}" instead of "${addressParts.postcode}". Please verify the entered address.`);
+      } else {
+        console.log('✅ Postcode validation passed');
       }
+    } else {
+      console.log('ℹ️ Postcode validation skipped - Input postcode:', addressParts.postcode, 'Geocoded postcode:', geocodedPostcode);
     }
 
-    // Street validation (check if road exists in components)
-    const hasStreet = components.road || components.house_number;
-    if (!hasStreet) {
-      return false;
-    }
+    // // Street validation (check if road exists in components)
+    // const hasStreet = components.road || components.house_number;
+    // if (!hasStreet) {
+    //   return false;
+    // }
 
     return true;
   }

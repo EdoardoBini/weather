@@ -227,7 +227,13 @@ export class AddressFormComponent implements OnInit, OnDestroy {
     if (this.italianCountryCode === 'it') {
       // Full Italian format (no house number)
       const roadTypePrefix = this.roadType ? `${this.roadType} ` : '';
-      address = `${roadTypePrefix}${this.roadName}, ${this.city}, ${this.county}, ${this.postalCode}`;
+      // Remove county if equal to city (case-insensitive)
+      const countyToUse = (this.county && this.city && this.county.trim().toLowerCase() === this.city.trim().toLowerCase()) ? '' : this.county;
+      if (countyToUse) {
+        address = `${roadTypePrefix}${this.roadName}, ${this.city}, ${countyToUse}, ${this.postalCode}`;
+      } else {
+        address = `${roadTypePrefix}${this.roadName}, ${this.city}, ${this.postalCode}`;
+      }
     } else {
       // For other countries, include county if present
       if (this.county) {
@@ -245,6 +251,7 @@ export class AddressFormComponent implements OnInit, OnDestroy {
             latitude: result.latitude,
             longitude: result.longitude,
             address: result.address,
+            postcode: result.postcode || this.postalCode,
           });
           this.isLoading = false;
         } else {

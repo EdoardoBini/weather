@@ -92,7 +92,7 @@
   </div>
 
   <div echarts [options]="chartOptions" class="weather-echart"></div>
-  <div class="chart-fab-buttons">
+  <div class="chart-fab-buttons" *ngIf="granularity !== 'custom'">
     <button
       class="fab-btn"
       (click)="zoomIn()"

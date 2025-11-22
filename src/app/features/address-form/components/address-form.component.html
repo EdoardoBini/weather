@@ -2,206 +2,142 @@
   <div class="form-section">
     <div class="form-card">
       <h2>Address Search</h2>
-      <div class="address-tabs">
-        <button
-          type="button"
-          [class.active]="activeTab === 'italian'"
-          (click)="activeTab !== 'italian' && onTabChange('italian')"
-        >
-          Guided Search
-        </button>
-        <button
-          type="button"
-          [class.active]="activeTab === 'international'"
-          (click)="activeTab !== 'international' && onTabChange('international')"
-        >
-          Free Address Search
-        </button>
-      </div>
+      <!-- Tabs removed: only Italian form remains -->
       <form (ngSubmit)="onSubmit()" class="address-form">
-        <ng-container *ngIf="activeTab === 'italian'">
-          <div class="form-group">
-            <label for="italianCountryCode">Country:</label>
-            <div class="select-wrapper">
-              <select
-                id="italianCountryCode"
-                name="italianCountryCode"
-                [(ngModel)]="italianCountryCode"
-                required
-                [class.invalid-field]="isInvalid('italianCountryCode')"
-                (change)="onFieldChange('italianCountryCode')"
-              >
-                <option value="">Select country...</option>
-                <option value="it">Italy</option>
-                <option value="us">United States</option>
-                <option value="gb">United Kingdom</option>
-                <option value="fr">France</option>
-                <option value="de">Germany</option>
-                <option value="es">Spain</option>
-                <option value="ca">Canada</option>
-                <option value="au">Australia</option>
-                <option value="jp">Japan</option>
-                <option value="cn">China</option>
-                <!-- Add more countries as needed -->
-              </select>
-            </div>
-            <div *ngIf="isInvalid('italianCountryCode')" class="input-error">Required</div>
-          </div>
-          <div class="form-group" *ngIf="italianCountryCode === 'it'">
-            <label for="roadType">Road Type:</label>
-            <div class="select-wrapper">
-              <select
-                id="roadType"
-                name="roadType"
-                [(ngModel)]="roadType"
-                [required]="italianCountryCode === 'it'"
-                [class.invalid-field]="isInvalid('roadType')"
-                (change)="onFieldChange('roadType')"
-              >
-                <option value="">Select a type of road..</option>
-                <option value="Via">Via</option>
-                <option value="Viale">Viale</option>
-                <option value="Piazza">Piazza</option>
-                <option value="Corso">Corso</option>
-                <option value="Largo">Largo</option>
-                <option value="Strada">Strada</option>
-                <option value="Vicolo">Vicolo</option>
-                <option value="Piazzale">Piazzale</option>
-                <!-- <option value="Altra">Altra</option> -->
-              </select>
-            </div>
-            <div *ngIf="isInvalid('roadType')" class="input-error">Required</div>
-          </div>
-          <div class="form-group">
-            <label for="roadName">Address Name:</label>
-            <input
-              id="roadName"
-              name="roadName"
-              type="text"
-              [(ngModel)]="roadName"
+        <div class="form-group">
+          <label for="italianCountryCode">Country:</label>
+          <div class="select-wrapper">
+            <select
+              id="italianCountryCode"
+              name="italianCountryCode"
+              [(ngModel)]="italianCountryCode"
               required
-              placeholder="es. Garibaldi, Roma, Dante..."
-              [class.invalid-field]="isInvalid('roadName')"
-              (input)="onFieldChange('roadName')"
-            />
-            <div *ngIf="isInvalid('roadName')" class="input-error">
-              {{ !roadName ? 'Address name is required.' : 'No special characters allowed.' }}
-            </div>
+              [class.invalid-field]="isInvalid('italianCountryCode')"
+              (change)="onFieldChange('italianCountryCode')"
+            >
+              <option value="">Select country...</option>
+              <option value="it">Italy</option>
+              <option value="us">United States</option>
+              <option value="gb">United Kingdom</option>
+              <option value="fr">France</option>
+              <option value="de">Germany</option>
+              <option value="es">Spain</option>
+              <option value="ca">Canada</option>
+              <option value="au">Australia</option>
+              <option value="jp">Japan</option>
+              <option value="cn">China</option>
+              <!-- Add more countries as needed -->
+            </select>
           </div>
-          <div class="form-group">
-            <label for="city">City:</label>
-            <input
-              id="city"
-              name="city"
-              type="text"
-              [(ngModel)]="city"
-              required
-              placeholder="es. Milano, Roma, Napoli..."
-              [class.invalid-field]="isInvalid('city')"
-              (input)="onFieldChange('city')"
-            />
-            <div *ngIf="isInvalid('city')" class="input-error">
-              {{ !city ? 'City is required.' : 'No special characters allowed.' }}
-            </div>
-          </div>
-          <div class="form-group" *ngIf="italianCountryCode === 'it'">
-            <label for="county">County:</label>
-            <input
-              id="county"
-              name="county"
-              type="text"
-              [(ngModel)]="county"
+          <div *ngIf="isInvalid('italianCountryCode')" class="input-error">Required</div>
+        </div>
+        <div class="form-group" *ngIf="italianCountryCode === 'it'">
+          <label for="roadType">Road Type:</label>
+          <div class="select-wrapper">
+            <select
+              id="roadType"
+              name="roadType"
+              [(ngModel)]="roadType"
               [required]="italianCountryCode === 'it'"
-              placeholder="es. Milano, Roma, Napoli..."
-              [class.invalid-field]="isInvalid('county')"
-              (input)="onFieldChange('county')"
-            />
-            <div *ngIf="isInvalid('county')" class="input-error">
-              {{ !county ? 'County is required.' : 'No special characters allowed.' }}
-            </div>
+              [class.invalid-field]="isInvalid('roadType')"
+              (change)="onFieldChange('roadType')"
+            >
+              <option value="">Select a type of road..</option>
+              <option value="Via">Via</option>
+              <option value="Viale">Viale</option>
+              <option value="Piazza">Piazza</option>
+              <option value="Corso">Corso</option>
+              <option value="Largo">Largo</option>
+              <option value="Strada">Strada</option>
+              <option value="Vicolo">Vicolo</option>
+              <option value="Piazzale">Piazzale</option>
+              <!-- <option value="Altra">Altra</option> -->
+            </select>
           </div>
-          <div class="form-group" *ngIf="italianCountryCode === 'it'">
-            <label for="postalCode">Postcode:</label>
-            <input
-              id="postalCode"
-              name="postalCode"
-              type="text"
-              [(ngModel)]="postalCode"
-              [required]="italianCountryCode === 'it'"
-              placeholder="es. 20121, 00100, 80121..."
-              maxlength="5"
-              pattern="[0-9]*"
-              [class.invalid-field]="isInvalid('postalCode')"
-              (input)="onFieldChange('postalCode')"
-              (keypress)="onPostalCodeKeypress($event)"
-            />
-            <div *ngIf="isInvalid('postalCode')" class="input-error">Postcode must be 5 digits</div>
+          <div *ngIf="isInvalid('roadType')" class="input-error">Required</div>
+        </div>
+        <div class="form-group">
+          <label for="roadName">Address Name:</label>
+          <input
+            id="roadName"
+            name="roadName"
+            type="text"
+            [(ngModel)]="roadName"
+            required
+            placeholder="es. Garibaldi, Roma, Dante..."
+            [class.invalid-field]="isInvalid('roadName')"
+            (input)="onFieldChange('roadName')"
+          />
+          <div *ngIf="isInvalid('roadName')" class="input-error">
+            {{ !roadName ? 'Address name is required.' : 'No special characters allowed.' }}
           </div>
-        </ng-container>
-        <ng-container *ngIf="activeTab === 'international'">
-          <div class="form-group">
-            <label for="countryCode">Country:</label>
-            <div class="select-wrapper">
-              <select
-                id="countryCode"
-                name="countryCode"
-                [(ngModel)]="countryCode"
-                required
-                (change)="onFieldChange('countryCode')"
-              >
-                <option value="">Select country...</option>
-                <option value="it">Italy</option>
-                <option value="us">United States</option>
-                <option value="gb">United Kingdom</option>
-                <option value="fr">France</option>
-                <option value="de">Germany</option>
-                <option value="es">Spain</option>
-                <option value="ca">Canada</option>
-                <option value="au">Australia</option>
-                <option value="jp">Japan</option>
-                <option value="cn">China</option>
-                <!-- Add more countries as needed -->
-              </select>
-            </div>
-            <div *ngIf="touched['countryCode'] && !countryCode" class="input-error">Required</div>
+        </div>
+        <div class="form-group">
+          <label for="city">City:</label>
+          <input
+            id="city"
+            name="city"
+            type="text"
+            [(ngModel)]="city"
+            required
+            placeholder="es. Milano, Roma, Napoli..."
+            [class.invalid-field]="isInvalid('city')"
+            (input)="onFieldChange('city')"
+          />
+          <div *ngIf="isInvalid('city')" class="input-error">
+            {{ !city ? 'City is required.' : 'No special characters allowed.' }}
           </div>
-          <div class="form-group">
-            <label for="intlAddress">Full Address:</label>
-            <input
-              id="intlAddress"
-              name="intlAddress"
-              type="text"
-              [(ngModel)]="intlAddress"
-              required
-              placeholder="e.g. 221B Baker Street, London, UK"
-              [class.invalid-field]="touched['intlAddress'] && !intlAddress"
-              (input)="onFieldChange('intlAddress')"
-            />
-            <div *ngIf="touched['intlAddress'] && !intlAddress" class="input-error">Required</div>
+        </div>
+        <div class="form-group" *ngIf="italianCountryCode === 'it'">
+          <label for="county">County:</label>
+          <input
+            id="county"
+            name="county"
+            type="text"
+            [(ngModel)]="county"
+            [required]="italianCountryCode === 'it'"
+            placeholder="es. Milano, Roma, Napoli..."
+            [class.invalid-field]="isInvalid('county')"
+            (input)="onFieldChange('county')"
+          />
+          <div *ngIf="isInvalid('county')" class="input-error">
+            {{ !county ? 'County is required.' : 'No special characters allowed.' }}
           </div>
-        </ng-container>
+        </div>
+        <div class="form-group" *ngIf="italianCountryCode === 'it'">
+          <label for="postalCode">Postcode:</label>
+          <input
+            id="postalCode"
+            name="postalCode"
+            type="text"
+            [(ngModel)]="postalCode"
+            [required]="italianCountryCode === 'it'"
+            placeholder="es. 20121, 00100, 80121..."
+            maxlength="5"
+            pattern="[0-9]*"
+            [class.invalid-field]="isInvalid('postalCode')"
+            (input)="onFieldChange('postalCode')"
+            (keypress)="onPostalCodeKeypress($event)"
+          />
+          <div *ngIf="isInvalid('postalCode')" class="input-error">Postcode must be 5 digits</div>
+        </div>
+        <!-- International section removed -->
         <button
           type="submit"
           [disabled]="
             isLoading ||
-            (activeTab === 'italian' &&
-              (isInvalid('italianCountryCode') ||
-                (italianCountryCode === 'it' && isInvalid('roadType')) ||
-                isInvalid('roadName') ||
-                isInvalid('city') ||
-                (italianCountryCode === 'it' && isInvalid('county')) ||
-                (italianCountryCode === 'it' && isInvalid('postalCode')) ||
-                !italianCountryCode ||
-                (italianCountryCode === 'it' && !roadType) ||
-                !roadName ||
-                !city ||
-                (italianCountryCode === 'it' && !county) ||
-                (italianCountryCode === 'it' && !postalCode))) ||
-            (activeTab === 'international' &&
-              (!intlAddress ||
-                isInvalid('intlAddress') ||
-                !countryCode ||
-                isInvalid('countryCode')))
+            isInvalid('italianCountryCode') ||
+            (italianCountryCode === 'it' && isInvalid('roadType')) ||
+            isInvalid('roadName') ||
+            isInvalid('city') ||
+            (italianCountryCode === 'it' && isInvalid('county')) ||
+            (italianCountryCode === 'it' && isInvalid('postalCode')) ||
+            !italianCountryCode ||
+            (italianCountryCode === 'it' && !roadType) ||
+            !roadName ||
+            !city ||
+            (italianCountryCode === 'it' && !county) ||
+            (italianCountryCode === 'it' && !postalCode)
           "
         >
           <ng-container *ngIf="isLoading; else searchIcon">

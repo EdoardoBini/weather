@@ -34,26 +34,18 @@ import {
 })
 export class AddressFormComponent implements OnInit, OnDestroy {
   isLoading: boolean = false;
-  onTabChange(tab: 'italian' | 'international') {
-    this.activeTab = tab;
-    this.clearForm();
-    this.formChanged.emit();
-  }
   formModified: boolean = true;
   @Output() locationFound = new EventEmitter<LocationResult>();
   @Output() errorOccurred = new EventEmitter<string>();
   @Output() formCleared = new EventEmitter<void>();
   @Output() formChanged = new EventEmitter<void>();
 
-  activeTab: 'italian' | 'international' = 'italian';
   italianCountryCode: string = '';
   roadType: string = '';
   roadName: string = '';
   city: string = '';
   county: string = '';
   postalCode: string = '';
-  intlAddress: string = '';
-  countryCode: string = '';
   error: string | null = null;
 
   private isBrowser: boolean;
@@ -66,8 +58,6 @@ export class AddressFormComponent implements OnInit, OnDestroy {
     city: false,
     county: false,
     postalCode: false,
-    intlAddress: false,
-    countryCode: false,
   };
 
   /**
@@ -77,14 +67,14 @@ export class AddressFormComponent implements OnInit, OnDestroy {
     if (field === 'postalCode') {
       return this.touched[field] && !this.isValidItalianPostalCode(this.postalCode);
     }
-    if (field === 'roadName' && this.activeTab === 'italian') {
+    if (field === 'roadName') {
       // Only allow letters, numbers, spaces, apostrophes, and dashes in Italian road names
       return (
         this.touched[field] &&
         (!this.roadName || !/^[A-Za-zÀ-ÿ0-9'\- ]+$/.test(this.roadName))
       );
     }
-    if ((field === 'city' || field === 'county') && this.activeTab === 'italian') {
+    if ((field === 'city' || field === 'county')) {
       // Only allow letters, numbers, spaces, apostrophes, and dashes in Italian city/county
       return (
         this.touched[field] &&
@@ -170,128 +160,80 @@ export class AddressFormComponent implements OnInit, OnDestroy {
     Object.keys(this.touched).forEach((f) => (this.touched[f] = true));
     this.formModified = false;
 
-    if (this.activeTab === 'italian') {
-      if (
-        this.isInvalid('italianCountryCode') ||
-        (this.italianCountryCode === 'it' && this.isInvalid('roadType')) ||
-        this.isInvalid('roadName') ||
-        this.isInvalid('city') ||
-        (this.italianCountryCode === 'it' && this.isInvalid('county')) ||
-        (this.italianCountryCode === 'it' && this.isInvalid('postalCode'))
-      ) {
-        let errorMsg = '';
-        if (this.isInvalid('roadName')) {
-          errorMsg = !this.roadName ? 'Address name is required.' : 'Address name: no special characters allowed.';
-        } else if (this.isInvalid('city')) {
-          errorMsg = !this.city ? 'City is required.' : 'City: no special characters allowed.';
-        } else if (this.italianCountryCode === 'it' && this.isInvalid('county')) {
-          errorMsg = !this.county ? 'County is required.' : 'County: no special characters allowed.';
+    if (
+      this.isInvalid('italianCountryCode') ||
+      (this.italianCountryCode === 'it' && this.isInvalid('roadType')) ||
+      this.isInvalid('roadName') ||
+      this.isInvalid('city') ||
+      (this.italianCountryCode === 'it' && this.isInvalid('county')) ||
+      (this.italianCountryCode === 'it' && this.isInvalid('postalCode'))
+    ) {
+      let errorMsg = '';
+      if (this.isInvalid('roadName')) {
+        errorMsg = !this.roadName ? 'Address name is required.' : 'Address name: no special characters allowed.';
+      } else if (this.isInvalid('city')) {
+        errorMsg = !this.city ? 'City is required.' : 'City: no special characters allowed.';
+      } else if (this.italianCountryCode === 'it' && this.isInvalid('county')) {
+        errorMsg = !this.county ? 'County is required.' : 'County: no special characters allowed.';
+      } else {
+        errorMsg = this.italianCountryCode === 'it'
+          ? 'Please fill in all required fields.'
+          : 'Country, road name and city are required.';
+      }
+      this.error = errorMsg;
+      this.errorOccurred.emit(errorMsg);
+      return;
+    }
+
+    let address = '';
+    if (this.italianCountryCode === 'it') {
+      // Full Italian format (no house number)
+      const roadTypePrefix = this.roadType ? `${this.roadType} ` : '';
+      address = `${roadTypePrefix}${this.roadName}, ${this.city}, ${this.county}, ${this.postalCode}`;
+    } else {
+      // Simplified format for other countries
+      address = `${this.roadName}, ${this.city}`;
+    }
+
+    this.geocodingService.geocode(address, this.italianCountryCode).subscribe({
+      next: (result: LocationResult | null) => {
+        if (result) {
+          this.error = '';
+          this.locationFound.emit({
+            latitude: result.latitude,
+            longitude: result.longitude,
+            address: result.address,
+          });
+          this.isLoading = false;
         } else {
-          errorMsg = this.italianCountryCode === 'it'
-            ? 'Please fill in all required fields.'
-            : 'Country, road name and city are required.';
+          const errorMsg = 'No results found.';
+          this.error = errorMsg;
+          this.errorOccurred.emit(errorMsg);
+          this.isLoading = false;
+        }
+      },
+      error: (error: any) => {
+        let errorMsg = '';
+        if (error.message) {
+          if (error.message.startsWith('VALIDATION_ERROR:')) {
+            errorMsg = error.message.substring('VALIDATION_ERROR:'.length).trim();
+          } else if (error.message.startsWith('NO_RESULTS:')) {
+            errorMsg = error.message.substring('NO_RESULTS:'.length).trim();
+          } else if (error.message.startsWith('API_ERROR:')) {
+            errorMsg = error.message.substring('API_ERROR:'.length).trim();
+          } else if (error.message.startsWith('NETWORK_ERROR:')) {
+            errorMsg = error.message.substring('NETWORK_ERROR:'.length).trim();
+          } else {
+            errorMsg = 'Error occurred while searching for the location.';
+          }
+        } else {
+          errorMsg = 'Error occurred while searching for the location.';
         }
         this.error = errorMsg;
         this.errorOccurred.emit(errorMsg);
-        return;
-      }
-
-      let address = '';
-      if (this.italianCountryCode === 'it') {
-        // Full Italian format (no house number)
-        const roadTypePrefix = this.roadType ? `${this.roadType} ` : '';
-        address = `${roadTypePrefix}${this.roadName}, ${this.city}, ${this.county}, ${this.postalCode}`;
-      } else {
-        // Simplified format for other countries
-        address = `${this.roadName}, ${this.city}`;
-      }
-
-      this.geocodingService.geocode(address, this.italianCountryCode).subscribe({
-        next: (result: LocationResult | null) => {
-          if (result) {
-            this.error = '';
-            this.locationFound.emit({
-              latitude: result.latitude,
-              longitude: result.longitude,
-              address: result.address,
-            });
-            this.isLoading = false;
-          } else {
-            const errorMsg = 'No results found.';
-            this.error = errorMsg;
-            this.errorOccurred.emit(errorMsg);
-            this.isLoading = false;
-          }
-        },
-        error: (error: any) => {
-          let errorMsg = '';
-          if (error.message) {
-            if (error.message.startsWith('VALIDATION_ERROR:')) {
-              errorMsg = error.message.substring('VALIDATION_ERROR:'.length).trim();
-            } else if (error.message.startsWith('NO_RESULTS:')) {
-              errorMsg = error.message.substring('NO_RESULTS:'.length).trim();
-            } else if (error.message.startsWith('API_ERROR:')) {
-              errorMsg = error.message.substring('API_ERROR:'.length).trim();
-            } else if (error.message.startsWith('NETWORK_ERROR:')) {
-              errorMsg = error.message.substring('NETWORK_ERROR:'.length).trim();
-            } else {
-              errorMsg = 'Error occurred while searching for the location.';
-            }
-          } else {
-            errorMsg = 'Error occurred while searching for the location.';
-          }
-          this.error = errorMsg;
-          this.errorOccurred.emit(errorMsg);
-          this.isLoading = false;
-        },
-      });
-    } else if (this.activeTab === 'international') {
-      if (!this.intlAddress || !this.countryCode) {
-        const errorMsg = 'Address and country are required.';
-        this.error = errorMsg;
-        this.errorOccurred.emit(errorMsg);
-        return;
-      }
-      this.geocodingService.geocode(this.intlAddress, this.countryCode).subscribe({
-        next: (result: LocationResult | null) => {
-          if (result) {
-            this.error = '';
-            this.locationFound.emit({
-              latitude: result.latitude,
-              longitude: result.longitude,
-              address: result.address,
-            });
-            this.isLoading = false;
-          } else {
-            const errorMsg = 'No results found.';
-            this.error = errorMsg;
-            this.errorOccurred.emit(errorMsg);
-            this.isLoading = false;
-          }
-        },
-        error: (error: any) => {
-          let errorMsg = '';
-          if (error.message) {
-            if (error.message.startsWith('VALIDATION_ERROR:')) {
-              errorMsg = error.message.substring('VALIDATION_ERROR:'.length).trim();
-            } else if (error.message.startsWith('NO_RESULTS:')) {
-              errorMsg = error.message.substring('NO_RESULTS:'.length).trim();
-            } else if (error.message.startsWith('API_ERROR:')) {
-              errorMsg = error.message.substring('API_ERROR:'.length).trim();
-            } else if (error.message.startsWith('NETWORK_ERROR:')) {
-              errorMsg = error.message.substring('NETWORK_ERROR:'.length).trim();
-            } else {
-              errorMsg = 'Error occurred while searching for the location.';
-            }
-          } else {
-            errorMsg = 'Error occurred while searching for the location.';
-          }
-          this.error = errorMsg;
-          this.errorOccurred.emit(errorMsg);
-          this.isLoading = false;
-        },
-      });
-    }
+        this.isLoading = false;
+      },
+    });
   }
 
   /**
@@ -311,8 +253,6 @@ export class AddressFormComponent implements OnInit, OnDestroy {
     this.city = '';
     this.county = '';
     this.postalCode = '';
-    this.intlAddress = '';
-    this.countryCode = '';
     this.error = null;
     this.formModified = true;
     // Reset touched state for all fields
@@ -323,8 +263,6 @@ export class AddressFormComponent implements OnInit, OnDestroy {
       city: false,
       county: false,
       postalCode: false,
-      intlAddress: false,
-      countryCode: false,
     };
     // Emit the form cleared event
     this.formCleared.emit();

@@ -52,7 +52,7 @@ export class GeocodingService {
             } else {
               // No valid result found - throw validation error
               throw new Error(
-                'VALIDATION_ERROR: Invalid or not found address. Please check that the city and province are correct.'
+                'VALIDATION_ERROR: Invalid or not found address. Please try again.'
               );
             }
           } catch (error: any) {
@@ -61,7 +61,7 @@ export class GeocodingService {
               throw error;
             } else {
               throw new Error(
-                'VALIDATION_ERROR: Invalid or not found address. Please check that the city and province are correct.'
+                'VALIDATION_ERROR: Invalid or not found address. Please try again.'
               );
             }
           }
@@ -120,6 +120,7 @@ export class GeocodingService {
    */
   private findBestResult(results: any[], originalAddress: string): any | null {
     // Parse the original address components
+    console.log('originalAddress', originalAddress);
     const addressParts = this.parseAddress(originalAddress);
     let validationErrors: string[] = [];
 
@@ -130,12 +131,17 @@ export class GeocodingService {
         continue; // Skip low confidence results
       }
 
-      // If not Italy, validate city and postcode only
+      // If not Italy, validate city and postcode only if present
       const countryCode = result.components.country_code;
       if (countryCode && countryCode.toLowerCase() !== 'it') {
+        if (result.confidence >= 7) {
+          return result;
+        }
         const geocodedCity =
           result.components.city || result.components.town || result.components.village || '';
         const geocodedPostcode = result.components.postcode || '';
+
+        // Only validate city if both are present
         if (
           geocodedCity &&
           addressParts.city &&
@@ -146,6 +152,8 @@ export class GeocodingService {
           );
           continue;
         }
+
+        // Only validate postcode if both are present
         if (
           addressParts.province && // for non-Italy, province is actually postcode
           geocodedPostcode &&
@@ -156,6 +164,8 @@ export class GeocodingService {
           );
           continue;
         }
+
+        // If either city or postcode is missing in input or result, skip that validation
         return result;
       }
 
@@ -217,10 +227,12 @@ export class GeocodingService {
   private parseAddress(address: string): any {
     // Simple parsing - you might want to make this more sophisticated
     const parts = address.split(',').map((p) => p.trim());
+    // Try to extract postcode if present (e.g., "street, city, province, postcode")
     return {
       street: parts[0] || '',
       city: parts[1] || '',
       province: parts[2] || '',
+      postcode: parts[3] || '',
     };
   }
 
@@ -237,12 +249,11 @@ export class GeocodingService {
     const geocodedCity = components.city || components.town || components.village || '';
     const geocodedProvince = components.county || ''; // County is the Italian province
     const geocodedRegion = components.state || components.state_district || ''; // State is the Italian region
+    const geocodedPostcode = components.postcode || '';
 
     // Check if the main city matches (case insensitive)
     const cityMatch = this.fuzzyMatch(geocodedCity, addressParts.city);
-
     if (!cityMatch) {
-      // console.log('City mismatch:', { geocoded: geocodedCity, input: addressParts.city });
       return false;
     }
 
@@ -251,7 +262,6 @@ export class GeocodingService {
       const provinceMatch =
         this.fuzzyMatch(geocodedProvince, addressParts.province) ||
         this.fuzzyMatch(geocodedRegion, addressParts.province);
-
       if (!provinceMatch) {
         // Check if it's a known mismatch case
         const knownMismatches = this.checkKnownMismatches(
@@ -260,22 +270,23 @@ export class GeocodingService {
           geocodedProvince
         );
         if (knownMismatches) {
-          // console.log('Known geographical mismatch detected');
           return false;
         }
-
-        // console.log('Province mismatch:', {
-        //   geocoded: { province: geocodedProvince, region: geocodedRegion },
-        //   input: addressParts.province
-        // });
         return false;
+      }
+    }
+
+    // Postcode validation (if both present)
+    if (addressParts.postcode && geocodedPostcode) {
+      if (!this.fuzzyMatch(geocodedPostcode, addressParts.postcode)) {
+        // Instead of returning false, throw a specific error for postcode mismatch
+        throw new Error(`VALIDATION_ERROR: Postcode mismatch: found "${geocodedPostcode}" instead of "${addressParts.postcode}". Please verify the entered address.`);
       }
     }
 
     // Street validation (check if road exists in components)
     const hasStreet = components.road || components.house_number;
     if (!hasStreet) {
-      // console.log('Missing street information');
       return false;
     }
 

@@ -104,6 +104,21 @@
             {{ !county ? 'County is required.' : 'No special characters allowed.' }}
           </div>
         </div>
+        <div class="form-group" *ngIf="italianCountryCode && italianCountryCode !== 'it'">
+          <label for="county">County (optional):</label>
+          <input
+            id="county"
+            name="county"
+            type="text"
+            [(ngModel)]="county"
+            placeholder="e.g. Greater London, Ontario, etc."
+            [class.invalid-field]="isInvalid('county')"
+            (input)="onFieldChange('county')"
+          />
+          <div *ngIf="county && isInvalid('county')" class="input-error">
+            No special characters allowed.
+          </div>
+        </div>
         <div class="form-group" *ngIf="italianCountryCode === 'it'">
           <label for="postalCode">Postcode:</label>
           <input
@@ -122,18 +137,19 @@
           <div *ngIf="isInvalid('postalCode')" class="input-error">Postcode must be 5 digits</div>
         </div>
         <div class="form-group" *ngIf="italianCountryCode && italianCountryCode !== 'it'">
-          <label for="postalCode">Postcode:</label>
+          <label for="postalCode">Postcode (optional):</label>
           <input
             id="postalCode"
             name="postalCode"
             type="text"
             [(ngModel)]="postalCode"
-            required
-            placeholder="Postcode..."
+            placeholder="e.g. 90210, SW1A 1AA, etc."
             [class.invalid-field]="isInvalid('postalCode')"
             (input)="onFieldChange('postalCode')"
           />
-          <div *ngIf="isInvalid('postalCode')" class="input-error">Postcode is required.</div>
+          <div *ngIf="postalCode && isInvalid('postalCode')" class="input-error">
+            Invalid postcode format.
+          </div>
         </div>
         <!-- International section removed -->
         <button
@@ -152,7 +168,6 @@
             !roadName ||
             !city ||
             (italianCountryCode === 'it' && !county) ||
-            (italianCountryCode && italianCountryCode !== 'it' && !postalCode) ||
             (italianCountryCode === 'it' && !postalCode)
           "
         >

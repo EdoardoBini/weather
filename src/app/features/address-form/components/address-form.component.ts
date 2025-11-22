@@ -69,7 +69,8 @@ export class AddressFormComponent implements OnInit, OnDestroy {
       if (this.italianCountryCode === 'it') {
         return !this.isValidItalianPostalCode(this.postalCode);
       } else if (this.italianCountryCode) {
-        return !this.postalCode;
+        // For other countries, only validate if non-empty and touched
+        return !!this.postalCode && !/^[A-Za-z0-9 \-]+$/.test(this.postalCode);
       }
       return false;
     }
@@ -80,12 +81,28 @@ export class AddressFormComponent implements OnInit, OnDestroy {
         (!this.roadName || !/^[A-Za-zÀ-ÿ0-9'\- ]+$/.test(this.roadName))
       );
     }
-    if ((field === 'city' || field === 'county')) {
-      // Only allow letters, numbers, spaces, apostrophes, and dashes in Italian city/county
+    if (field === 'city') {
+      // Only allow letters, numbers, spaces, apostrophes, and dashes in Italian city
       return (
         this.touched[field] &&
         (!(this as any)[field] || !/^[A-Za-zÀ-ÿ0-9'\- ]+$/.test((this as any)[field]))
       );
+    }
+    if (field === 'county') {
+      if (this.italianCountryCode === 'it') {
+        // Required and character validation for Italy
+        return (
+          this.touched[field] &&
+          (!(this as any)[field] || !/^[A-Za-zÀ-ÿ0-9'\- ]+$/.test((this as any)[field]))
+        );
+      } else {
+        // For other countries, only validate if non-empty and touched
+        return (
+          this.touched[field] &&
+          !!(this as any)[field] &&
+          !/^[A-Za-zÀ-ÿ0-9'\- ]+$/.test((this as any)[field])
+        );
+      }
     }
     return this.touched[field] && !(this as any)[field];
   }
@@ -119,15 +136,22 @@ export class AddressFormComponent implements OnInit, OnDestroy {
     if (this.error) this.error = null;
     this.formModified = true;
     this.formChanged.emit();
-    // Clear Italy-specific fields when country changes from Italy to another country
-    if (field === 'italianCountryCode' && this.italianCountryCode !== 'it') {
-      this.roadType = '';
-      this.county = '';
-      this.postalCode = '';
-      this.touched['roadType'] = false;
-      this.touched['county'] = false;
-      this.touched['postalCode'] = false;
+    // If country changes, reset all touched states and clear errors
+    if (field === 'italianCountryCode') {
+      Object.keys(this.touched).forEach((key) => (this.touched[key] = false));
+      this.error = null;
+      // Clear Italy-specific fields when country changes from Italy to another country
+      if (this.italianCountryCode !== 'it') {
+        this.roadType = '';
+        this.county = '';
+        this.postalCode = '';
+      }
+    } else {
+      // Clear error if user starts editing
+      if (this.error) this.error = null;
     }
+    this.formModified = true;
+    this.formChanged.emit();
   }
 
   constructor(
@@ -173,7 +197,7 @@ export class AddressFormComponent implements OnInit, OnDestroy {
       this.isInvalid('city') ||
       (this.italianCountryCode === 'it' && this.isInvalid('county')) ||
       (this.italianCountryCode === 'it' && this.isInvalid('postalCode')) ||
-      (this.italianCountryCode && this.italianCountryCode !== 'it' && this.isInvalid('postalCode'))
+      (this.italianCountryCode && this.italianCountryCode !== 'it' && !!this.postalCode && this.isInvalid('postalCode'))
     ) {
       let errorMsg = '';
       if (this.isInvalid('roadName')) {
@@ -182,12 +206,12 @@ export class AddressFormComponent implements OnInit, OnDestroy {
         errorMsg = !this.city ? 'City is required.' : 'City: no special characters allowed.';
       } else if (this.italianCountryCode === 'it' && this.isInvalid('county')) {
         errorMsg = !this.county ? 'County is required.' : 'County: no special characters allowed.';
-      } else if (this.italianCountryCode && this.italianCountryCode !== 'it' && this.isInvalid('postalCode')) {
-        errorMsg = 'Postcode is required.';
+      } else if (this.italianCountryCode && this.italianCountryCode !== 'it' && !!this.postalCode && this.isInvalid('postalCode')) {
+        errorMsg = 'Invalid postcode format.';
       } else {
         errorMsg = this.italianCountryCode === 'it'
           ? 'Please fill in all required fields.'
-          : 'Country, road name, city and postcode are required.';
+          : 'Country, road name and city are required.';
       }
       this.error = errorMsg;
       this.errorOccurred.emit(errorMsg);
@@ -200,8 +224,12 @@ export class AddressFormComponent implements OnInit, OnDestroy {
       const roadTypePrefix = this.roadType ? `${this.roadType} ` : '';
       address = `${roadTypePrefix}${this.roadName}, ${this.city}, ${this.county}, ${this.postalCode}`;
     } else {
-      // For other countries, include postcode
-      address = `${this.roadName}, ${this.city}, ${this.postalCode}`;
+      // For other countries, include county if present
+      if (this.county) {
+        address = `${this.roadName}, ${this.city}, ${this.county}, ${this.postalCode}`;
+      } else {
+        address = `${this.roadName}, ${this.city}, ${this.postalCode}`;
+      }
     }
 
     this.geocodingService.geocode(address, this.italianCountryCode).subscribe({

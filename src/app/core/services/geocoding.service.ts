@@ -126,96 +126,99 @@ export class GeocodingService {
     const addressParts = this.parseAddress(originalAddress);
     let validationErrors: string[] = [];
 
+    // Collect all valid results with their match score
+    const validResults: { result: any; score: number }[] = [];
+
     for (const result of results) {
-      // Check minimum confidence threshold
       if (result.confidence < 7) {
         validationErrors.push(`Low confidence (${result.confidence}/10)`);
-        continue; // Skip low confidence results
+        continue;
       }
 
-      // If not Italy, validate city and postcode only if present
       const countryCode = result.components.country_code;
+      let matchScore = 0;
+      let isValid = false;
+
       if (countryCode && countryCode.toLowerCase() !== 'it') {
-        const geocodedCity =
-          result.components.city || result.components.town || result.components.village || '';
+        const geocodedCity = result.components.city || result.components.town || result.components.village || '';
         const geocodedPostcode = result.components.postcode || '';
         const geocodedCounty = result.components.county || '';
         const inputPostcode = addressParts.postcode || '';
         const inputCounty = addressParts.county || '';
 
         // Only validate city if both are present
-        if (
-          geocodedCity &&
-          addressParts.city &&
-          !this.fuzzyMatch(geocodedCity, addressParts.city)
-        ) {
-          validationErrors.push(
-            `City mismatch: found \"${geocodedCity}\" instead of \"${addressParts.city}\"`
-          );
-          continue;
+        if (geocodedCity && addressParts.city) {
+          if (this.fuzzyMatch(geocodedCity, addressParts.city)) {
+            matchScore++;
+          } else {
+            validationErrors.push(`City mismatch: found \"${geocodedCity}\" instead of \"${addressParts.city}\"`);
+            continue;
+          }
         }
 
         // Validate postcode if both are present
-        if (
-          inputPostcode && geocodedPostcode &&
-          geocodedPostcode.toLowerCase() !== inputPostcode.toLowerCase()
-        ) {
-          validationErrors.push(
-            `Postcode mismatch: found \"${geocodedPostcode}\" instead of \"${inputPostcode}\"`
-          );
-          continue;
+        if (inputPostcode && geocodedPostcode) {
+          if (geocodedPostcode.toLowerCase() === inputPostcode.toLowerCase()) {
+            matchScore++;
+          } else {
+            validationErrors.push(`Postcode mismatch: found \"${geocodedPostcode}\" instead of \"${inputPostcode}\"`);
+            continue;
+          }
         }
 
         // Validate county if both are present
-        if (
-          inputCounty && geocodedCounty &&
-          !this.fuzzyMatch(geocodedCounty, inputCounty)
-        ) {
-          validationErrors.push(
-            `County mismatch: found \"${geocodedCounty}\" instead of \"${inputCounty}\"`
-          );
-          continue;
+        if (inputCounty && geocodedCounty) {
+          if (this.fuzzyMatch(geocodedCounty, inputCounty)) {
+            matchScore++;
+          } else {
+            validationErrors.push(`County mismatch: found \"${geocodedCounty}\" instead of \"${inputCounty}\"`);
+            continue;
+          }
         }
 
         // If either city, postcode, or county is missing in input or result, skip that validation
-        return result;
-      }
-
-      // Validate address components match (Italy)
-      if (this.validateAddressMatch(result.components, addressParts)) {
-        return result;
+        isValid = true;
       } else {
-        // Collect specific validation errors for better error messages
-        const geocodedCity =
-          result.components.city || result.components.town || result.components.village || '';
-        const geocodedProvince = result.components.county || '';
-
-        if (
-          geocodedCity &&
-          addressParts.city &&
-          !this.fuzzyMatch(geocodedCity, addressParts.city)
-        ) {
-          validationErrors.push(
-            `City mismatch: found "${geocodedCity}" instead of "${addressParts.city}"`
-          );
-        }
-
-        if (
-          addressParts.province &&
-          geocodedProvince &&
-          !this.fuzzyMatch(geocodedProvince, addressParts.province)
-        ) {
-          if (this.checkKnownMismatches(geocodedCity, addressParts.province, geocodedProvince)) {
-            validationErrors.push(
-              `Invalid geographical combination: "${addressParts.city}" is not in the province of "${addressParts.province}"`
-            );
+        // Italy: validate address components match
+        try {
+          if (this.validateAddressMatch(result.components, addressParts)) {
+            // Score for each matching component
+            const geocodedCity = result.components.city || result.components.town || result.components.village || '';
+            const geocodedProvince = result.components.county || '';
+            if (this.fuzzyMatch(geocodedCity, addressParts.city)) matchScore++;
+            if (addressParts.province && this.fuzzyMatch(geocodedProvince, addressParts.province)) matchScore++;
+            if (addressParts.postcode && result.components.postcode && result.components.postcode === addressParts.postcode) matchScore++;
+            isValid = true;
           } else {
-            validationErrors.push(
-              `Province mismatch: found "${geocodedProvince}" instead of "${addressParts.province}"`
-            );
+            // Collect specific validation errors for better error messages
+            const geocodedCity = result.components.city || result.components.town || result.components.village || '';
+            const geocodedProvince = result.components.county || '';
+            if (geocodedCity && addressParts.city && !this.fuzzyMatch(geocodedCity, addressParts.city)) {
+              validationErrors.push(`City mismatch: found "${geocodedCity}" instead of "${addressParts.city}"`);
+            }
+            if (addressParts.province && geocodedProvince && !this.fuzzyMatch(geocodedProvince, addressParts.province)) {
+              if (this.checkKnownMismatches(geocodedCity, addressParts.province, geocodedProvince)) {
+                validationErrors.push(`Invalid geographical combination: "${addressParts.city}" is not in the province of "${addressParts.province}"`);
+              } else {
+                validationErrors.push(`Province mismatch: found "${geocodedProvince}" instead of "${addressParts.province}"`);
+              }
+            }
           }
+        } catch (e: any) {
+          // If postcode mismatch throws, treat as invalid
+          validationErrors.push(e.message);
         }
       }
+
+      if (isValid) {
+        validResults.push({ result, score: matchScore + result.confidence });
+      }
+    }
+
+    if (validResults.length > 0) {
+      // Sort by score (confidence + matchScore), descending
+      validResults.sort((a, b) => b.score - a.score);
+      return validResults[0].result;
     }
 
     // If we have specific validation errors, include them in the error
@@ -226,8 +229,9 @@ export class GeocodingService {
 
     // If no perfect match, return highest confidence result above threshold
     const highConfidenceResults = results.filter((r) => r.confidence >= 8);
+    console.log('High confidence results:', highConfidenceResults);
     if (highConfidenceResults.length > 0) {
-      return highConfidenceResults[0]; // Already sorted by confidence
+      return highConfidenceResults[0];
     }
 
     return null; // No acceptable result found

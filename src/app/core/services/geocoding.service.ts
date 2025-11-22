@@ -134,12 +134,12 @@ export class GeocodingService {
       // If not Italy, validate city and postcode only if present
       const countryCode = result.components.country_code;
       if (countryCode && countryCode.toLowerCase() !== 'it') {
-        if (result.confidence >= 7) {
-          return result;
-        }
         const geocodedCity =
           result.components.city || result.components.town || result.components.village || '';
         const geocodedPostcode = result.components.postcode || '';
+        const geocodedCounty = result.components.county || '';
+        const inputPostcode = addressParts.province || '';
+        const inputCounty = addressParts.county || '';
 
         // Only validate city if both are present
         if (
@@ -153,19 +153,29 @@ export class GeocodingService {
           continue;
         }
 
-        // Only validate postcode if both are present
+        // Validate postcode if both are present
         if (
-          addressParts.province && // for non-Italy, province is actually postcode
-          geocodedPostcode &&
-          geocodedPostcode.toLowerCase() !== addressParts.province.toLowerCase()
+          inputPostcode && geocodedPostcode &&
+          geocodedPostcode.toLowerCase() !== inputPostcode.toLowerCase()
         ) {
           validationErrors.push(
-            `Postcode mismatch`
+            `Postcode mismatch: found \"${geocodedPostcode}\" instead of \"${inputPostcode}\"`
           );
           continue;
         }
 
-        // If either city or postcode is missing in input or result, skip that validation
+        // Validate county if both are present
+        if (
+          inputCounty && geocodedCounty &&
+          !this.fuzzyMatch(geocodedCounty, inputCounty)
+        ) {
+          validationErrors.push(
+            `County mismatch: found \"${geocodedCounty}\" instead of \"${inputCounty}\"`
+          );
+          continue;
+        }
+
+        // If either city, postcode, or county is missing in input or result, skip that validation
         return result;
       }
 
@@ -227,12 +237,13 @@ export class GeocodingService {
   private parseAddress(address: string): any {
     // Simple parsing - you might want to make this more sophisticated
     const parts = address.split(',').map((p) => p.trim());
-    // Try to extract postcode if present (e.g., "street, city, province, postcode")
+    // Try to extract county and postcode if present (e.g., "street, city, province, county, postcode")
     return {
       street: parts[0] || '',
       city: parts[1] || '',
       province: parts[2] || '',
-      postcode: parts[3] || '',
+      county: parts[3] || '',
+      postcode: parts[4] || '',
     };
   }
 

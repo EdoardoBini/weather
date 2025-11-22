@@ -121,16 +121,25 @@ export class GeocodingService {
    * Throws a validation error if no suitable result is found.
    */
   private findBestResult(results: any[], originalAddress: string): any | null {
-    // Parse the original address components
-    console.log('originalAddress', originalAddress);
+    // Prefer result with postcode matching the input, otherwise throw error
     const addressParts = this.parseAddress(originalAddress);
+    if (results && results.length > 0 && addressParts.postcode) {
+      // Discard results without road or square attribute
+      const filteredResults = results.filter(r => r.components && (r.components.road || r.components.square));
+      const exactPostcode = filteredResults.find(r => r.components && r.components.postcode && r.components.postcode === addressParts.postcode);
+      if (exactPostcode) return exactPostcode;
+      // If no result with matching postcode, throw error
+      throw new Error(`VALIDATION_ERROR: No result found with postcode ${addressParts.postcode} and a valid road or square. Please verify the entered address.`);
+    }
+
+    console.log('originalAddress', originalAddress);
     let validationErrors: string[] = [];
 
     // Collect all valid results with their match score
     const validResults: { result: any; score: number }[] = [];
 
     for (const result of results) {
-      if (result.confidence < 7) {
+      if (result.confidence < 9) {
         validationErrors.push(`Low confidence (${result.confidence}/10)`);
         continue;
       }

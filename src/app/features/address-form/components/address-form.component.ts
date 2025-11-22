@@ -48,6 +48,8 @@ export class AddressFormComponent implements OnInit, OnDestroy {
   postalCode: string = '';
   error: string | null = null;
 
+  private previousCountryCode: string = '';
+
   private isBrowser: boolean;
   private subscription: Subscription = new Subscription();
 
@@ -140,12 +142,15 @@ export class AddressFormComponent implements OnInit, OnDestroy {
     if (field === 'italianCountryCode') {
       Object.keys(this.touched).forEach((key) => (this.touched[key] = false));
       this.error = null;
-      // Clear Italy-specific fields when country changes from Italy to another country
-      if (this.italianCountryCode !== 'it') {
+      // Only reset if changing from a non-empty value to another non-empty value
+      if (this.previousCountryCode && this.italianCountryCode && this.previousCountryCode !== this.italianCountryCode) {
         this.roadType = '';
+        this.roadName = '';
+        this.city = '';
         this.county = '';
         this.postalCode = '';
       }
+      this.previousCountryCode = this.italianCountryCode;
     } else {
       // Clear error if user starts editing
       if (this.error) this.error = null;

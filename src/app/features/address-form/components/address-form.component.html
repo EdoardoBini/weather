@@ -111,7 +111,7 @@
             name="postalCode"
             type="text"
             [(ngModel)]="postalCode"
-            [required]="italianCountryCode === 'it'"
+            required
             placeholder="es. 20121, 00100, 80121..."
             maxlength="5"
             pattern="[0-9]*"
@@ -120,6 +120,20 @@
             (keypress)="onPostalCodeKeypress($event)"
           />
           <div *ngIf="isInvalid('postalCode')" class="input-error">Postcode must be 5 digits</div>
+        </div>
+        <div class="form-group" *ngIf="italianCountryCode && italianCountryCode !== 'it'">
+          <label for="postalCode">Postcode:</label>
+          <input
+            id="postalCode"
+            name="postalCode"
+            type="text"
+            [(ngModel)]="postalCode"
+            required
+            placeholder="Postcode..."
+            [class.invalid-field]="isInvalid('postalCode')"
+            (input)="onFieldChange('postalCode')"
+          />
+          <div *ngIf="isInvalid('postalCode')" class="input-error">Postcode is required.</div>
         </div>
         <!-- International section removed -->
         <button
@@ -132,11 +146,13 @@
             isInvalid('city') ||
             (italianCountryCode === 'it' && isInvalid('county')) ||
             (italianCountryCode === 'it' && isInvalid('postalCode')) ||
+            (italianCountryCode && italianCountryCode !== 'it' && isInvalid('postalCode')) ||
             !italianCountryCode ||
             (italianCountryCode === 'it' && !roadType) ||
             !roadName ||
             !city ||
             (italianCountryCode === 'it' && !county) ||
+            (italianCountryCode && italianCountryCode !== 'it' && !postalCode) ||
             (italianCountryCode === 'it' && !postalCode)
           "
         >

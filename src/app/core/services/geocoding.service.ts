@@ -130,14 +130,43 @@ export class GeocodingService {
         continue; // Skip low confidence results
       }
 
-      // Validate address components match
+      // If not Italy, validate city and postcode only
+      const countryCode = result.components.country_code;
+      if (countryCode && countryCode.toLowerCase() !== 'it') {
+        const geocodedCity =
+          result.components.city || result.components.town || result.components.village || '';
+        const geocodedPostcode = result.components.postcode || '';
+        if (
+          geocodedCity &&
+          addressParts.city &&
+          !this.fuzzyMatch(geocodedCity, addressParts.city)
+        ) {
+          validationErrors.push(
+            `City mismatch: found \"${geocodedCity}\" instead of \"${addressParts.city}\"`
+          );
+          continue;
+        }
+        if (
+          addressParts.province && // for non-Italy, province is actually postcode
+          geocodedPostcode &&
+          geocodedPostcode.toLowerCase() !== addressParts.province.toLowerCase()
+        ) {
+          validationErrors.push(
+            `Postcode mismatch`
+          );
+          continue;
+        }
+        return result;
+      }
+
+      // Validate address components match (Italy)
       if (this.validateAddressMatch(result.components, addressParts)) {
         return result;
       } else {
         // Collect specific validation errors for better error messages
         const geocodedCity =
           result.components.city || result.components.town || result.components.village || '';
-        const geocodedProvince = result.components.county || ''; // County is the Italian province
+        const geocodedProvince = result.components.county || '';
 
         if (
           geocodedCity &&

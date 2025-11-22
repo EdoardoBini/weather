@@ -65,7 +65,13 @@ export class AddressFormComponent implements OnInit, OnDestroy {
    */
   isInvalid(field: string): boolean {
     if (field === 'postalCode') {
-      return this.touched[field] && !this.isValidItalianPostalCode(this.postalCode);
+      if (!this.touched[field]) return false;
+      if (this.italianCountryCode === 'it') {
+        return !this.isValidItalianPostalCode(this.postalCode);
+      } else if (this.italianCountryCode) {
+        return !this.postalCode;
+      }
+      return false;
     }
     if (field === 'roadName') {
       // Only allow letters, numbers, spaces, apostrophes, and dashes in Italian road names
@@ -166,7 +172,8 @@ export class AddressFormComponent implements OnInit, OnDestroy {
       this.isInvalid('roadName') ||
       this.isInvalid('city') ||
       (this.italianCountryCode === 'it' && this.isInvalid('county')) ||
-      (this.italianCountryCode === 'it' && this.isInvalid('postalCode'))
+      (this.italianCountryCode === 'it' && this.isInvalid('postalCode')) ||
+      (this.italianCountryCode && this.italianCountryCode !== 'it' && this.isInvalid('postalCode'))
     ) {
       let errorMsg = '';
       if (this.isInvalid('roadName')) {
@@ -175,10 +182,12 @@ export class AddressFormComponent implements OnInit, OnDestroy {
         errorMsg = !this.city ? 'City is required.' : 'City: no special characters allowed.';
       } else if (this.italianCountryCode === 'it' && this.isInvalid('county')) {
         errorMsg = !this.county ? 'County is required.' : 'County: no special characters allowed.';
+      } else if (this.italianCountryCode && this.italianCountryCode !== 'it' && this.isInvalid('postalCode')) {
+        errorMsg = 'Postcode is required.';
       } else {
         errorMsg = this.italianCountryCode === 'it'
           ? 'Please fill in all required fields.'
-          : 'Country, road name and city are required.';
+          : 'Country, road name, city and postcode are required.';
       }
       this.error = errorMsg;
       this.errorOccurred.emit(errorMsg);
@@ -191,8 +200,8 @@ export class AddressFormComponent implements OnInit, OnDestroy {
       const roadTypePrefix = this.roadType ? `${this.roadType} ` : '';
       address = `${roadTypePrefix}${this.roadName}, ${this.city}, ${this.county}, ${this.postalCode}`;
     } else {
-      // Simplified format for other countries
-      address = `${this.roadName}, ${this.city}`;
+      // For other countries, include postcode
+      address = `${this.roadName}, ${this.city}, ${this.postalCode}`;
     }
 
     this.geocodingService.geocode(address, this.italianCountryCode).subscribe({

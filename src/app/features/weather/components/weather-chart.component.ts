@@ -229,12 +229,19 @@ export class WeatherChartComponent implements OnInit, OnChanges {
   private handleDateRangeChange() {
     // Only fetch for 'current' mode, not 'yearly'
     if (this.dataMode === 'current' && this.weatherData && this.weatherData.location) {
+      const today = new Date(this.today);
       const start = new Date(this.customStart);
       const end = new Date(this.customEnd);
-      // Calculate days difference (inclusive)
-      const diffTime = end.getTime() - start.getTime();
+      // If start date is before today, show error and do not fetch
+      if (start < today) {
+        this.chartError = 'Forecast data is only available from today onwards.';
+        this.updateChart();
+        return;
+      }
+      // Calculate days from today to end date (inclusive)
+      const diffTime = end.getTime() - today.getTime();
       const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      if (diffDays > 0) {
+      if (diffDays >= 1) {
         this.weatherService
           .getForecastWeather(
             this.weatherData.location.lat,
@@ -244,10 +251,10 @@ export class WeatherChartComponent implements OnInit, OnChanges {
           .subscribe({
             next: (data: WeatherDisplayData) => {
               this.chartError = null;
-              // Keep location and current, update hourly
+              // Update all weatherData, not just hourly, to ensure consistency
               this.weatherData = {
                 ...this.weatherData!,
-                hourly: data.hourly,
+                ...data,
               };
               this.updateChart();
             },
@@ -350,9 +357,10 @@ export class WeatherChartComponent implements OnInit, OnChanges {
     const times = currentData.hourly.time;
     let xData: string[] = [];
 
+    // Always strictly filter by selected date range, regardless of backend window
     let filteredIndexes: number[] = [];
     let filteredTimes: string[] = [];
-    if (this.dataMode === 'current') {
+    if (this.dataMode === 'current' && this.customStart && this.customEnd) {
       const startDate = new Date(this.customStart);
       const endDate = new Date(this.customEnd);
       filteredIndexes = times
@@ -378,7 +386,6 @@ export class WeatherChartComponent implements OnInit, OnChanges {
       filteredIndexes = times.map((_, i) => i);
       filteredTimes = times;
     }
-
     // Generate x-axis labels based on granularity for filtered data
     switch (this.granularity) {
       case 'hourly':
@@ -538,7 +545,7 @@ export class WeatherChartComponent implements OnInit, OnChanges {
           type: 'inside',
           xAxisIndex: 0,
           filterMode: 'filter',
-          minSpan: 5,
+          minSpan: 1,
           zoomOnMouseWheel: true,
           moveOnMouseMove: true,
           moveOnMouseWheel: true,

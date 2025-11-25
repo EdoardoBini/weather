@@ -120,7 +120,7 @@
     <div class="current-weather">
       <div class="temperature">
         <span class="temp">{{ weatherData()?.current?.temp_c?.toFixed(1) }}°C</span>
-        <span class="time">{{ formatTime(weatherData()?.current?.time) }}</span>
+        <!-- <span class="time">{{ formatTime(weatherData()?.current?.time) }}</span> -->
       </div>
       <div class="weather-icon">
         <div class="icon-placeholder">
@@ -175,12 +175,12 @@
           <div
             class="hourly-item"
             *ngFor="let hourData of getNext12HoursData(); let i = index"
-            [class.current-hour]="isCurrentHour(i)"
+            [class.current-hour]="isCurrentHour(hourData)"
           >
             <div class="hour-time">
               <span class="time">{{ hourData.time }}</span>
-              <span class="period" *ngIf="isCurrentHour(i)">Now</span>
-              <span class="period next" *ngIf="i === 1 && !isCurrentHour(0)">Next</span>
+              <span class="period" *ngIf="isCurrentHour(hourData)">Now</span>
+              <span class="period next" *ngIf="i === 1 && !isCurrentHour(hourData)">Next</span>
             </div>
 
             <div class="weather-icon-small">

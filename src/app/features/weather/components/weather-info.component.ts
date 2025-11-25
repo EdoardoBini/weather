@@ -25,6 +25,9 @@ import { WeatherDisplayData, HourlyDataDisplay } from '../../../shared/interface
   styleUrls: ['./weather-info.component.scss'],
 })
 export class WeatherInfoComponent implements OnChanges {
+  // Store the current hour and date in the searched place's timezone
+  private placeCurrentHour: number | null = null;
+  private placeCurrentDate: string | null = null;
   /**
    * Retry handler for error overlay
    */
@@ -54,26 +57,98 @@ export class WeatherInfoComponent implements OnChanges {
   hasWeatherData = computed(() => this.weatherData() !== null);
   isDataLoading = computed(() => this.loading() || this.loadingYearly());
 
-  // Computed hourly data processing
+  // Computed hourly data processing: start from the current hour
   hourlyDisplayData = computed(() => {
     const data = this.weatherData();
     if (!data?.hourly) return [];
 
+    // Get the timezone from the weather data
+    const tz = data.location?.timezone || undefined;
+    // Get the current hour in the place's timezone
+    let nowHour = null;
+    let nowDate = null;
+    try {
+      const now = new Date();
+      if (tz && typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+        // Use Intl to get the hour in the target timezone
+        const parts = new Intl.DateTimeFormat('en-US', {
+          hour: '2-digit',
+          hour12: false,
+          timeZone: tz,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).formatToParts(now);
+        const hourPart = parts.find((p) => p.type === 'hour');
+        const dayPart = parts.find((p) => p.type === 'day');
+        const monthPart = parts.find((p) => p.type === 'month');
+        const yearPart = parts.find((p) => p.type === 'year');
+        if (hourPart && dayPart && monthPart && yearPart) {
+          nowHour = parseInt(hourPart.value, 10);
+          nowDate = `${yearPart.value}-${monthPart.value}-${dayPart.value}`;
+        }
+      } else {
+        nowHour = now.getHours();
+        nowDate = now.toISOString().split('T')[0];
+      }
+    } catch {
+      nowHour = new Date().getHours();
+      nowDate = new Date().toISOString().split('T')[0];
+    }
+
+    // Store for use in isCurrentHour
+    this.placeCurrentHour = nowHour;
+    this.placeCurrentDate = nowDate;
+
+    // Find the index of the first hour >= current hour in the place's timezone
+    let startIdx = 0;
+    for (let i = 0; i < data.hourly.time.length; i++) {
+      const hourDate = new Date(data.hourly.time[i]);
+      const hour = hourDate.getUTCHours();
+      const dateStr = hourDate.toISOString().split('T')[0];
+      // Convert hourDate to the place's timezone
+      let localHour = hour;
+      let localDateStr = dateStr;
+      if (tz && typeof Intl !== 'undefined' && Intl.DateTimeFormat) {
+        const parts = new Intl.DateTimeFormat('en-US', {
+          hour: '2-digit',
+          hour12: false,
+          timeZone: tz,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).formatToParts(hourDate);
+        const hourPart = parts.find((p) => p.type === 'hour');
+        const dayPart = parts.find((p) => p.type === 'day');
+        const monthPart = parts.find((p) => p.type === 'month');
+        const yearPart = parts.find((p) => p.type === 'year');
+        if (hourPart && dayPart && monthPart && yearPart) {
+          localHour = parseInt(hourPart.value, 10);
+          localDateStr = `${yearPart.value}-${monthPart.value}-${dayPart.value}`;
+        }
+      }
+      if (localHour === nowHour && localDateStr === nowDate) {
+        startIdx = i;
+        break;
+      }
+    }
+
     const next12Hours: HourlyDataDisplay[] = [];
-    const maxHours = Math.min(12, data.hourly.time.length);
+    const maxHours = Math.min(12, data.hourly.time.length - startIdx);
 
     for (let i = 0; i < maxHours; i++) {
+      const idx = startIdx + i;
       if (
-        data.hourly.time[i] &&
-        data.hourly.temperature_2m[i] !== undefined &&
-        data.hourly.relative_humidity_2m[i] !== undefined &&
-        data.hourly.wind_speed_10m[i] !== undefined
+        data.hourly.time[idx] &&
+        data.hourly.temperature_2m[idx] !== undefined &&
+        data.hourly.relative_humidity_2m[idx] !== undefined &&
+        data.hourly.wind_speed_10m[idx] !== undefined
       ) {
         next12Hours.push({
-          time: this.formatTime(data.hourly.time[i]),
-          temperature: data.hourly.temperature_2m[i],
-          humidity: data.hourly.relative_humidity_2m[i],
-          windSpeed: data.hourly.wind_speed_10m[i],
+          time: this.formatTime(data.hourly.time[idx]),
+          temperature: data.hourly.temperature_2m[idx],
+          humidity: data.hourly.relative_humidity_2m[idx],
+          windSpeed: data.hourly.wind_speed_10m[idx],
         });
       }
     }
@@ -282,6 +357,16 @@ export class WeatherInfoComponent implements OnChanges {
     if (!timeString) return '--:--';
     try {
       const date = new Date(timeString);
+      // Use the place's timezone if available
+      const tz = this.weatherData()?.location?.timezone;
+      if (tz) {
+        return date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+          timeZone: tz,
+        });
+      }
       return date.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
@@ -301,10 +386,31 @@ export class WeatherInfoComponent implements OnChanges {
   }
 
   /**
-   * Returns true if the given index corresponds to the current hour.
+   * Returns true if the given hourData corresponds to the current hour.
    */
-  isCurrentHour(index: number): boolean {
-    return index === 0;
+  isCurrentHour(hourData: HourlyDataDisplay): boolean {
+    if (!hourData?.time || this.placeCurrentHour === null || this.placeCurrentDate === null)
+      return false;
+    // Try to parse hour and date from hourData.time (assumed format: 'HH:mm' or ISO string)
+    let hourFromData: number | null = null;
+    let dateFromData: string | null = null;
+    // Try to parse as 'HH:mm' (today)
+    const match = hourData.time.match(/^(\d{2}):(\d{2})/);
+    if (match) {
+      hourFromData = parseInt(match[1], 10);
+      // Use the stored date for today
+      dateFromData = this.placeCurrentDate;
+    } else {
+      // Try to parse as ISO string
+      const date = new Date(hourData.time);
+      if (!isNaN(date.getTime())) {
+        hourFromData = date.getHours();
+        dateFromData = date.toISOString().split('T')[0];
+      }
+    }
+    if (hourFromData === null || dateFromData === null) return false;
+    // Compare with the searched place's current hour and date
+    return hourFromData === this.placeCurrentHour && dateFromData === this.placeCurrentDate;
   }
 
   /**
